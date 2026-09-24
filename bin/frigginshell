@@ -1,0 +1,15 @@
+#!/bin/sh
+# FrigginShell launcher. Set as a login shell or an sshd ForceCommand.
+#
+#   FRIGGIN_HOME  where the application lives   (default: /opt/markscraper)
+#   MARKSCRAPER_DB  the archive to serve        (default: $FRIGGIN_HOME/data/marksfriggin.db)
+set -eu
+
+FRIGGIN_HOME="${FRIGGIN_HOME:-/opt/markscraper}"
+MARKSCRAPER_DB="${MARKSCRAPER_DB:-$FRIGGIN_HOME/data/marksfriggin.db}"
+export MARKSCRAPER_DB
+
+PY="$FRIGGIN_HOME/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3)"
+
+exec "$PY" -m markscraper.shell

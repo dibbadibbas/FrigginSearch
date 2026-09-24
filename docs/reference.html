@@ -1,0 +1,582 @@
+<title>MarkScraper Archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* Palette is drawn from the source material: #006699 is the exact colour of the
+   site's own day-banner <font> tags; the muted red descends from the #ff0000
+   banners it used in the 1990s. Neutrals are biased cool toward the accent. */
+:root {
+  --ground:      #f6f8f9;
+  --surface:     #ffffff;
+  --surface-alt: #eef3f6;
+  --ink:         #12171b;
+  --ink-soft:    #4d5a66;
+  --ink-faint:   #74838f;
+  --border:      #d9e2e8;
+  --border-firm: #bfcdd6;
+  --accent:      #006699;
+  --accent-ink:  #005080;
+  --accent-wash: #e4eff5;
+  --warn:        #9c3a2c;
+  --warn-wash:   #f7e9e6;
+  --shadow:      0 1px 2px rgba(18,23,27,.06), 0 8px 24px -16px rgba(18,23,27,.25);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --ground:      #0e1316;
+  --surface:     #151d22;
+  --surface-alt: #1b252b;
+  --ink:         #e7edf1;
+  --ink-soft:    #a6b5c0;
+  --ink-faint:   #7e8f9c;
+  --border:      #26323a;
+  --border-firm: #35444e;
+  --accent:      #57a9d0;
+  --accent-ink:  #7cc0e0;
+  --accent-wash: #14252f;
+  --warn:        #e08a74;
+  --warn-wash:   #2a1a16;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0e1316;
+  --surface:     #151d22;
+  --surface-alt: #1b252b;
+  --ink:         #e7edf1;
+  --ink-soft:    #a6b5c0;
+  --ink-faint:   #7e8f9c;
+  --border:      #26323a;
+  --border-firm: #35444e;
+  --accent:      #57a9d0;
+  --accent-ink:  #7cc0e0;
+  --accent-wash: #14252f;
+  --warn:        #e08a74;
+  --warn-wash:   #2a1a16;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 28px 96px; }
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 2px solid var(--border-firm);
+  padding: 56px 0 28px;
+  margin-bottom: 44px;
+}
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+h1 {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.1rem, 5.5vw, 3.1rem);
+  line-height: 1.05;
+  letter-spacing: -.022em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.standfirst {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* ---------- stat strip ---------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 34px 0 0;
+}
+.stat { background: var(--surface); padding: 15px 16px; }
+.stat dt {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 5px;
+}
+.stat dd {
+  margin: 0;
+  font-family: Archivo, sans-serif;
+  font-weight: 600;
+  font-size: 1.42rem;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.stat dd span { font-size: .78rem; font-weight: 500; color: var(--ink-faint); }
+
+/* ---------- sections ---------- */
+section { margin-top: 56px; scroll-margin-top: 20px; }
+h2 {
+  font-family: Archivo, sans-serif;
+  font-weight: 600;
+  font-size: 1.52rem;
+  letter-spacing: -.016em;
+  line-height: 1.2;
+  margin: 0 0 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  text-wrap: balance;
+}
+h2 .num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .72rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: .06em;
+  flex: none;
+}
+h3 {
+  font-family: Archivo, sans-serif;
+  font-weight: 600;
+  font-size: 1.04rem;
+  letter-spacing: -.008em;
+  margin: 30px 0 8px;
+}
+p { margin: 0 0 15px; max-width: 66ch; }
+ul, ol { margin: 0 0 15px; padding-left: 21px; max-width: 66ch; }
+li { margin-bottom: 7px; }
+strong { font-weight: 600; }
+a { color: var(--accent-ink); }
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .855em;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: .08em .34em;
+}
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 2px;
+  padding: 15px 17px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.62;
+  margin: 0 0 18px;
+  color: var(--ink-soft);
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+pre .c { color: var(--ink-faint); font-style: italic; }
+pre .k { color: var(--accent-ink); font-weight: 500; }
+
+/* ---------- tables ---------- */
+.scroll { overflow-x: auto; margin: 0 0 20px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: Archivo, sans-serif;
+  font-size: 14px;
+  min-width: 400px;
+}
+th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 10.5px;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--border-firm);
+  padding: 0 14px 8px 0;
+  white-space: nowrap;
+}
+td {
+  padding: 9px 14px 9px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; }
+tr:last-child td { border-bottom: 0; }
+table code { font-size: .82em; }
+
+/* ---------- callout ---------- */
+.callout {
+  background: var(--accent-wash);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  padding: 17px 20px;
+  margin: 0 0 22px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  display: block;
+  margin-bottom: 7px;
+  font-weight: 500;
+}
+.callout.caution { background: var(--warn-wash); border-left-color: var(--warn); }
+.callout.caution .label { color: var(--warn); }
+
+/* ---------- format cards ---------- */
+.formats { display: grid; gap: 14px; margin-bottom: 20px; }
+.fmt {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.fmt h4 {
+  font-family: Archivo, sans-serif;
+  font-size: .95rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.pill {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 2.5px 7px;
+  border-radius: 2px;
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.pill.q { background: var(--warn-wash); color: var(--warn); }
+.fmt p { font-size: .93rem; color: var(--ink-soft); margin: 0 0 11px; }
+.fmt pre { margin-bottom: 0; font-size: 12px; }
+
+footer {
+  margin-top: 64px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-family: Archivo, sans-serif;
+}
+
+@media (max-width: 620px) {
+  body { font-size: 16px; }
+  .wrap { padding: 0 19px 64px; }
+  .masthead { padding-top: 38px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Project reference · September 2026</p>
+  <h1>MarkScraper Archive</h1>
+  <p class="standfirst">Forty years of hand-maintained Howard Stern Show recaps from marksfriggin.com, crawled, parsed into SQLite, and indexed for full-text search — with a monthly update path that catches edits, not just new weeks.</p>
+
+  <dl class="stats">
+    <div class="stat"><dt>Pages</dt><dd>1,530</dd></div>
+    <div class="stat"><dt>Shows</dt><dd>8,030</dd></div>
+    <div class="stat"><dt>Segments</dt><dd>70,566</dd></div>
+    <div class="stat"><dt>With prose</dt><dd>52,692</dd></div>
+    <div class="stat"><dt>Coverage</dt><dd>1987<span>–2026</span></dd></div>
+    <div class="stat"><dt>Errors</dt><dd>0</dd></div>
+  </dl>
+</header>
+
+<section id="built">
+  <h2><span class="num">01</span> What was built</h2>
+  <p>A complete local archive. Every weekly page the site has ever published was crawled once, parsed into a <code>pages → shows → segments</code> model, and indexed with SQLite FTS5. The crawl finished with no fetch failures and no parse errors.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Decade</th><th class="n">Shows</th><th class="n">Segments</th><th class="n">With prose</th></tr></thead>
+    <tbody>
+      <tr><td>1980s</td><td class="n">26</td><td class="n">217</td><td class="n">217</td></tr>
+      <tr><td>1990s</td><td class="n">1,120</td><td class="n">4,994</td><td class="n">4,990</td></tr>
+      <tr><td>2000s</td><td class="n">2,650</td><td class="n">27,100</td><td class="n">25,132</td></tr>
+      <tr><td>2010s</td><td class="n">2,440</td><td class="n">24,332</td><td class="n">19,819</td></tr>
+      <tr><td>2020s</td><td class="n">1,779</td><td class="n">13,889</td><td class="n">2,503</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The collapse in prose through the 2020s is the source, not the scraper: the site's author stopped writing detailed recaps around September 2023. Everything after that is segment titles and air times.</p>
+
+  <p>Stored on disk: 358 MB database, 226 MB HTML cache, 203.6M characters of prose (~50.9M tokens). 19 tests, all passing.</p>
+</section>
+
+<section id="site">
+  <h2><span class="num">02</span> What the site actually is</h2>
+  <p>None of this is documented anywhere — it was established by crawling and reading markup. It is recorded because the parser depends on all of it.</p>
+
+  <h3>Entry points</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Index page</th><th>Covers</th><th class="n">Week links</th></tr></thead>
+    <tbody>
+      <tr><td><code>old96-05.htm</code></td><td>1986–2005</td><td class="n">451</td></tr>
+      <tr><td><code>old-news.htm</code></td><td>2006–present</td><td class="n">1,079</td></tr>
+      <tr><td><code>news.htm</code></td><td>current in-progress week</td><td class="n">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <span class="label">Hard-won rule</span>
+    <p>Weekly URLs are always <strong>read from the index pages, never constructed</strong>. Weeks don't align to fixed dates and early filenames are irregular — <code>news96_97/dec-97.htm</code>, <code>news86/mastertape86.htm</code>, <code>news99/12-6-99.htm</code>. Guessing URLs was the single biggest source of wasted effort during exploration; most apparent 404s were invented filenames.</p>
+  </div>
+
+  <h3>Three page formats</h3>
+  <p>Which format you get varies <strong>week to week, not by era</strong>, so it is detected per page rather than switched on the year.</p>
+
+  <div class="formats">
+    <div class="fmt">
+      <h4>Recap <span class="pill">1,152 pages</span></h4>
+      <p>A day banner per weekday, then segments with full write-ups. Roughly 1987 through September 2023. 150–380 KB per page.</p>
+<pre><code>&lt;font size=+1 color="#006699"&gt;&lt;u&gt;&lt;b&gt;&lt;i&gt;-- Monday, June 1, 2020 --&lt;/i&gt;&lt;/b&gt;&lt;/u&gt;&lt;/font&gt;
+&lt;ul&gt;
+&lt;p&gt;&lt;li&gt;&lt;b&gt;Segment Title&lt;/b&gt;&lt;br&gt;
+prose...&lt;P&gt;more prose...</code></pre>
+    </div>
+
+    <div class="fmt">
+      <h4>Listing <span class="pill">378 pages</span></h4>
+      <p>Same page skeleton, but day sections carry only a standing note — the real content is the table of contents. Every week from late 2023, plus rerun and vacation weeks throughout.</p>
+<pre><code>&lt;TR&gt;&lt;!--  MON  --&gt;&lt;td valign=top&gt;&lt;font size=-1&gt;&lt;ul&gt;
+&lt;li&gt;Segment Title. 09/21/26. 7:00am&lt;/li&gt;</code></pre>
+    </div>
+
+    <div class="fmt">
+      <h4>Flat <span class="pill q">1996 only</span></h4>
+      <p>No day banners at all. Each segment carries its own date — sometimes inline after the title, sometimes inside it. Found only after the full crawl, when 7 pages came back as <code>format='unknown'</code>.</p>
+<pre><code>&lt;p&gt;&lt;li&gt;&lt;b&gt;Segment Title&lt;/b&gt; 4-30-96. prose...
+&lt;p&gt;&lt;li&gt;&lt;b&gt;Another Title. 6/28/96.&lt;/b&gt;&lt;br&gt;prose...</code></pre>
+    </div>
+  </div>
+
+  <h3>Era quirks the parser absorbs</h3>
+  <ul>
+    <li><strong>Banner colour changed</strong> — <code>#ff0000</code> in the 1990s, <code>#006699</code> later. Colour is deliberately not part of the match.</li>
+    <li><strong>Comma placement varies</strong> — <code>-- Monday, June 1, 2020 --</code> against <code>-- Friday January 9, 1998 --</code>.</li>
+    <li><strong>1998 weeks run backwards</strong> — Friday first, Monday last.</li>
+    <li><strong>1996–97 pages hold a whole month</strong>, not a week. December 1997 yields 24 shows.</li>
+    <li><strong>Not every banner is a day.</strong> <code>Wrap Up Show</code> and various promo blocks use identical markup; undated banners fold into the day above rather than becoming dateless shows.</li>
+    <li><strong>Replay banners are real but out of range</strong> — a 1998 page can legitimately contain a February 2007 section, and <code>mastertape86.htm</code> is dated 2007 because it documents a replay of 1986 material. Kept as-is.</li>
+    <li><strong>The table of contents exists in both eras</strong>, which is where recap segments get their air times.</li>
+  </ul>
+
+  <h3>Transport quirks</h3>
+  <ul>
+    <li><strong>No <code>robots.txt</code></strong> — the URL 404s. No stated crawl rules; rate-limited to 1 req/sec regardless.</li>
+    <li><strong>HTTP 406 on short User-Agent strings.</strong> <code>"Mozilla/5.0"</code> alone is rejected; a full browser UA works.</li>
+    <li><strong>Encoding is cp1252</strong>, declared nowhere. UTF-8 decoding corrupts punctuation.</li>
+    <li><strong>No <code>ETag</code>.</strong> <code>If-None-Match</code> returns a full 200. But <code>Last-Modified</code> is sent and <code>If-Modified-Since</code> returns a 0-byte 304 — this is what makes monthly updates cheap.</li>
+    <li><strong>Pages are edited after publication</strong>, which is why updates revalidate rather than only hunting for new URLs.</li>
+  </ul>
+</section>
+
+<section id="architecture">
+  <h2><span class="num">03</span> Architecture</h2>
+<pre><code>markscraper/
+  config.py      <span class="c">constants: URLs, User-Agent, encoding, paths, pricing</span>
+  fetch.py       <span class="c">polite cached HTTP + conditional revalidation</span>
+  discover.py    <span class="c">index pages -> the work list of weekly URLs</span>
+  parse.py       <span class="c">format detection + the three parsers</span>
+  db.py          <span class="c">schema, FTS triggers, idempotent storage</span>
+  summarize.py   <span class="c">batch/sync summarisation</span>
+  cli.py         <span class="c">argparse entry point</span>
+tests/           <span class="c">fixtures from four eras + 19 tests</span>
+data/
+  cache/         <span class="c">raw HTML, mirrors the site's own paths</span>
+  marksfriggin.db</code></pre>
+
+  <div class="callout">
+    <span class="label">The decision that mattered</span>
+    <p><strong>Scraping and parsing are strictly separate.</strong> <code>scrape</code> writes raw HTML to <code>data/cache/</code>; <code>parse</code> only ever reads from there and never touches the network.</p>
+    <p>This paid for itself repeatedly. The parser was rewritten three times during the build — for Wrap Up Show merging, for the 1996 flat format, and for a schema change — and each full re-parse of all 1,530 pages took about two minutes and zero requests.</p>
+  </div>
+
+  <p><strong>Idempotency.</strong> <code>db.store_page()</code> replaces a page's rows inside one transaction, so re-parsing never duplicates. Existing summaries are carried across by <code>content_sha256</code> of title and body — improving the parser doesn't mean paying to regenerate the same text twice.</p>
+</section>
+
+<section id="schema">
+  <h2><span class="num">04</span> Database schema</h2>
+<pre><code><span class="k">pages</span>       url PK, year_folder, filename, week_start, week_end, format,
+            http_status, byte_size, content_sha256, etag, last_modified,
+            fetched_at, parsed_at, parse_error
+
+<span class="k">shows</span>       id PK, seq, show_date, weekday, page_url FK, day_header,
+            date_confidence, summary
+            UNIQUE(page_url, seq)
+
+<span class="k">segments</span>    id PK, show_id FK, ordinal, title, air_time, anchor,
+            body_text, body_chars, source_url, content_sha256, scraped_at,
+            summary, summary_model, summary_effort, summarized_at, batch_id
+            UNIQUE(show_id, ordinal)
+
+<span class="k">segments_fts</span>     FTS5(title, body_text, summary)
+                 external content, porter unicode61, trigger-synced
+
+<span class="k">summary_batches</span>  batch_id PK, model, effort, request_count, status,
+                 created_at, retrieved_at</code></pre>
+
+  <ul>
+    <li><code>shows</code> is keyed on <code>(page_url, seq)</code>, not on header text — the original key collided on 5 pages that repeat a banner within one page.</li>
+    <li><code>date_confidence</code> is <code>exact</code> (from a banner), <code>inferred</code> (from a segment's own date or the week range), or <code>unknown</code>.</li>
+    <li><code>body_text</code> is <code>NULL</code> for listing segments — there is no prose to store.</li>
+    <li>FTS5 stays in sync through <code>AFTER INSERT/UPDATE/DELETE</code> triggers, verified in tests.</li>
+  </ul>
+</section>
+
+<section id="commands">
+  <h2><span class="num">05</span> Command reference</h2>
+<pre><code>alias markscraper='.venv/bin/python -m markscraper.cli'</code></pre>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>discover</code></td><td>Read both index pages, build the work list (~1,530 rows)</td></tr>
+      <tr><td><code>scrape</code></td><td>Download pages to <code>data/cache/</code> at 1 req/sec</td></tr>
+      <tr><td><code>parse</code></td><td>Parse the cache into the database — no network</td></tr>
+      <tr><td><code>update</code></td><td>Incremental refresh — new weeks, edits, placeholders</td></tr>
+      <tr><td><code>search "…"</code></td><td>FTS5 search, bm25-ranked, with snippets</td></tr>
+      <tr><td><code>stats</code></td><td>Coverage report</td></tr>
+      <tr><td><code>summarize</code></td><td>Generate summaries</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Global flags: <code>--db PATH</code>, <code>--rate SECONDS</code>. Filters on <code>scrape</code> and <code>parse</code>: <code>--since YYYY</code>, <code>--until YYYY</code>, <code>--limit N</code>. Use <code>parse --reparse</code> to reprocess everything, <code>scrape --refresh</code> to re-download.</p>
+
+  <h3>First-time build</h3>
+<pre><code>markscraper discover &amp;&amp; markscraper scrape &amp;&amp; markscraper parse &amp;&amp; markscraper stats</code></pre>
+  <p>The crawl takes about 25 minutes at 1 req/sec; the parse about two minutes.</p>
+</section>
+
+<section id="update">
+  <h2><span class="num">06</span> The monthly update</h2>
+<pre><code>markscraper update                 <span class="c"># the routine monthly run</span>
+markscraper update --months 6      <span class="c"># look further back</span>
+markscraper update --all           <span class="c"># revalidate all 1,530 pages</span>
+markscraper update --summarize     <span class="c"># also summarise anything new</span></code></pre>
+
+  <div class="callout caution">
+    <span class="label">Why it isn't just "fetch new weeks"</span>
+    <p>The site <strong>edits pages after publishing</strong>. A week goes up with <em>"Segment List Coming Later This Friggin Week"</em> and is completed days later — <strong>32 pages currently carry such a placeholder</strong>. Looking only for new URLs would silently miss all of that content.</p>
+  </div>
+
+  <p>Each run re-checks three sets:</p>
+  <ol>
+    <li><strong>New weeks</strong> — both index pages re-read for unseen URLs.</li>
+    <li><strong>Recent weeks</strong> — any page with a <code>week_start</code> inside <code>--months</code> (default 3).</li>
+    <li><strong>Placeholder pages</strong> — any page still carrying a "coming later" segment, regardless of age.</li>
+  </ol>
+
+  <p>Every candidate is revalidated with <code>If-Modified-Since</code>. Unchanged pages return a 0-byte 304; changed pages are re-downloaded, re-parsed, and their existing summaries preserved. A typical run touches ~45 pages:</p>
+
+<pre><code>$ markscraper update
+0 new page(s) in the index; revalidating 45
+changed 0, unchanged 45</code></pre>
+
+  <p>Because the server sends no <code>ETag</code>, the first update after a database rebuild downloads its candidates in full to compare hashes, then stores <code>Last-Modified</code> so later runs get true 304s.</p>
+
+  <h3>Automating it</h3>
+<pre><code><span class="c"># crontab -e — 06:00 on the 1st of each month</span>
+0 6 1 * * .venv/bin/python -m markscraper.cli update &gt;&gt; /tmp/markscraper-update.log 2&gt;&amp;1</code></pre>
+</section>
+
+<section id="summaries">
+  <h2><span class="num">07</span> Summarisation</h2>
+  <p>A deliberately separate phase, so the archive exists first and the spend is a later decision.</p>
+<pre><code>markscraper summarize --dry-run                  <span class="c"># projection from real data</span>
+markscraper summarize --limit 5 --sync           <span class="c"># spot-check quality</span>
+markscraper summarize --model claude-haiku-4-5   <span class="c"># batch backfill</span>
+markscraper summarize --resume                   <span class="c"># collect finished batches</span></code></pre>
+
+  <ul>
+    <li><strong>Batch by default</strong>, at half price. Requests are chunked (default 5,000) and each segment is stamped with its <code>batch_id</code> <em>before</em> submission, so an interrupted run is recovered with <code>--resume</code> rather than re-submitted. Results are keyed by <code>custom_id</code>, never by position.</li>
+    <li><strong><code>--dry-run</code></strong> samples 25 real segments through <code>count_tokens</code> and extrapolates, rather than guessing.</li>
+    <li><strong><code>--effort</code></strong> defaults to <code>low</code>, which suits extractive condensation; it is omitted automatically for models that reject it.</li>
+  </ul>
+
+  <p>Backfill scale is <strong>52,692 prose segments, ~50.9M input tokens</strong>. Batch-priced estimates:</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Model</th><th class="n">Batch estimate</th></tr></thead>
+    <tbody>
+      <tr><td><code>claude-haiku-4-5</code></td><td class="n">≈ $37</td></tr>
+      <tr><td><code>claude-sonnet-5</code></td><td class="n">≈ $110</td></tr>
+      <tr><td><code>claude-opus-5</code></td><td class="n">≈ $185</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout caution">
+    <span class="label">Not yet run</span>
+    <p>No API credentials are configured on this machine. The command exits with a clear message until <code>ANTHROPIC_API_KEY</code> is set.</p>
+  </div>
+</section>
+
+<section id="limits">
+  <h2><span class="num">08</span> Known limitations</h2>
+  <ul>
+    <li><strong>15 undated shows</strong> (0.2%) — mostly promo blocks appearing before any dated banner, plus a few 1996 segments whose date couldn't be pinned. Their segments are stored; only <code>show_date</code> is missing.</li>
+    <li><strong>A few 1996 edge cases</strong> — <code>aug-96.htm</code> collapses to a single date, <code>mar-96.htm</code> holds one stray out-of-range date. Content is captured either way.</li>
+    <li><strong>Out-of-range replay dates are intentional</strong>, not bugs.</li>
+    <li><strong>Post-2023 has no prose</strong>, so there's nothing there for the summariser. That's a property of the source.</li>
+    <li><strong>The <code>etag</code> column is vestigial</strong> — the server never sends one. Kept so the schema needn't change if that ever starts.</li>
+    <li><strong>No incremental FTS rebuild.</strong> If the index is ever suspected of drift, <code>parse --reparse</code> rebuilds everything.</li>
+  </ul>
+</section>
+
+<section id="env">
+  <h2><span class="num">09</span> Environment</h2>
+  <p>Python 3.14 on Ubuntu 26.04, SQLite 3.46.1 with FTS5. This machine had no <code>pip</code> and no <code>ensurepip</code>, so <code>python3 -m venv</code> produced a venv with no pip inside it. Resolved by bootstrapping:</p>
+<pre><code>python3 -m venv .venv
+curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
+.venv/bin/pip install -r requirements.txt</code></pre>
+  <p>Dependencies: <code>anthropic</code>, <code>requests</code>, <code>beautifulsoup4</code>, <code>lxml</code>. The <code>lxml</code> parser matters — the markup is malformed enough that strict parsers drift.</p>
+<pre><code>.venv/bin/python -m unittest discover -s tests -v</code></pre>
+</section>
+
+<footer>
+  The archived content belongs to the site's author. This is a personal local archive: rate-limited, cached so nothing is fetched twice, and not redistributed.
+</footer>
+
+</div>

@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+
+# The archive itself: 226 MB of cached HTML and a 358 MB database.
+# Rebuild with: markscraper discover && markscraper scrape && markscraper parse
+data/
