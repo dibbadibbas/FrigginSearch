@@ -421,6 +421,7 @@ prose...&lt;P&gt;more prose...</code></pre>
   db.py          <span class="c">schema, FTS triggers, idempotent storage</span>
   summarize.py   <span class="c">batch/sync summarisation</span>
   cli.py         <span class="c">argparse entry point</span>
+  shell.py       <span class="c">FrigginShell — restricted menu front end</span>
 tests/           <span class="c">fixtures from four eras + 19 tests</span>
 data/
   cache/         <span class="c">raw HTML, mirrors the site's own paths</span>
@@ -477,6 +478,7 @@ data/
       <tr><td><code>update</code></td><td>Incremental refresh — new weeks, edits, placeholders</td></tr>
       <tr><td><code>search "…"</code></td><td>FTS5 search, bm25-ranked, with snippets</td></tr>
       <tr><td><code>stats</code></td><td>Coverage report</td></tr>
+      <tr><td><code>export</code></td><td>Write a read-only copy for serving</td></tr>
       <tr><td><code>summarize</code></td><td>Generate summaries</td></tr>
     </tbody>
   </table>
@@ -520,8 +522,49 @@ changed 0, unchanged 45</code></pre>
 0 6 1 * * .venv/bin/python -m markscraper.cli update &gt;&gt; /tmp/markscraper-update.log 2&gt;&amp;1</code></pre>
 </section>
 
+<section id="shell">
+  <h2><span class="num">07</span> FrigginShell</h2>
+  <p>A restricted, menu-driven front end to the archive, meant to be the login shell for an unprivileged account — <code>ssh friggin@host</code> lands someone on the latest show and a search menu.</p>
+
+<pre><code>.venv/bin/python -m markscraper.shell     <span class="c"># run it locally</span>
+sudo ./install/install-frigginshell.sh    <span class="c"># install it on a server</span></code></pre>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Key</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><code>1</code></td><td>Latest show — titles, air times, summaries where present</td></tr>
+      <tr><td><code>2</code></td><td>Search — FTS5, bm25-ranked, highlighted snippets</td></tr>
+      <tr><td><code>3</code></td><td>Browse a date — a full date or a whole year</td></tr>
+      <tr><td><code>4</code></td><td>Random segment</td></tr>
+      <tr><td><code>5</code></td><td>Archive stats</td></tr>
+      <tr><td><code>q</code></td><td>Quit, which ends the SSH session</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The landing screen deliberately skips the site's placeholder days — it shows the most recent show that actually has something to read, not the "coming later" stub that is often the newest row.</p>
+
+  <h3>Containment</h3>
+  <div class="callout caution">
+    <span class="label">Why this matters</span>
+    <p>A login shell on a shared account is a real attack surface. The most common way out of a kiosk shell is the pager: <code>less</code> lets a visitor type <code>!sh</code> and walk into a real shell. This program never starts a subprocess at all — paging is implemented in Python.</p>
+  </div>
+  <ul>
+    <li><strong>Read-only database</strong> — opened <code>mode=ro</code>, falling back to a <code>query_only</code> handle. A test asserts an <code>INSERT</code> raises.</li>
+    <li><strong>Search input never becomes query syntax</strong> — every term is quoted, so punctuation and FTS5 operators can't reach the query planner. Tested against hostile inputs that must each execute without raising and leave the tables intact.</li>
+    <li><strong><code>SIGTSTP</code> and <code>SIGQUIT</code> ignored</strong>, so the session can't be suspended or dumped out of.</li>
+    <li><strong><code>ForceCommand</code>, not just a login shell</strong> — it also covers <code>ssh friggin@host &lt;command&gt;</code>. Agent, X11, TCP, tunnel and stream-local forwarding are all off.</li>
+    <li>Without a TTY it prints the latest show and exits rather than trying to run a menu.</li>
+  </ul>
+
+  <h3>Serving a standalone copy</h3>
+<pre><code>markscraper export --to /opt/markscraper/data/marksfriggin.db</code></pre>
+  <p><code>VACUUM INTO</code> writes a compacted single file, write-ahead logging is switched off, and the file is set to mode 444 — a reader with no write access to the directory cannot open a WAL database, which is why this step exists.</p>
+</section>
+
 <section id="summaries">
-  <h2><span class="num">07</span> Summarisation</h2>
+  <h2><span class="num">08</span> Summarisation</h2>
   <p>A deliberately separate phase, so the archive exists first and the spend is a later decision.</p>
 <pre><code>markscraper summarize --dry-run                  <span class="c"># projection from real data</span>
 markscraper summarize --limit 5 --sync           <span class="c"># spot-check quality</span>
@@ -554,7 +597,7 @@ markscraper summarize --resume                   <span class="c"># collect finis
 </section>
 
 <section id="limits">
-  <h2><span class="num">08</span> Known limitations</h2>
+  <h2><span class="num">09</span> Known limitations</h2>
   <ul>
     <li><strong>15 undated shows</strong> (0.2%) — mostly promo blocks appearing before any dated banner, plus a few 1996 segments whose date couldn't be pinned. Their segments are stored; only <code>show_date</code> is missing.</li>
     <li><strong>A few 1996 edge cases</strong> — <code>aug-96.htm</code> collapses to a single date, <code>mar-96.htm</code> holds one stray out-of-range date. Content is captured either way.</li>
@@ -566,7 +609,7 @@ markscraper summarize --resume                   <span class="c"># collect finis
 </section>
 
 <section id="env">
-  <h2><span class="num">09</span> Environment</h2>
+  <h2><span class="num">10</span> Environment</h2>
   <p>Python 3.14 on Ubuntu 26.04, SQLite 3.46.1 with FTS5. This machine had no <code>pip</code> and no <code>ensurepip</code>, so <code>python3 -m venv</code> produced a venv with no pip inside it. Resolved by bootstrapping:</p>
 <pre><code>python3 -m venv .venv
 curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
