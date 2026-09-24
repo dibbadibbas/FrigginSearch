@@ -534,7 +534,7 @@ sudo ./install/install-frigginshell.sh    <span class="c"># install it on a serv
     <thead><tr><th>Key</th><th>Action</th></tr></thead>
     <tbody>
       <tr><td><code>1</code></td><td>Latest show — titles, air times, summaries where present</td></tr>
-      <tr><td><code>2</code></td><td>Search — FTS5, bm25-ranked, highlighted snippets</td></tr>
+      <tr><td><code>2</code></td><td>Search — see the syntax below; results run oldest first</td></tr>
       <tr><td><code>3</code></td><td>Browse a date — a full date or a whole year</td></tr>
       <tr><td><code>4</code></td><td>Random segment</td></tr>
       <tr><td><code>5</code></td><td>Archive stats</td></tr>
@@ -545,6 +545,26 @@ sudo ./install/install-frigginshell.sh    <span class="c"># install it on a serv
 
   <p>The landing screen deliberately skips the site's placeholder days — it shows the most recent show that actually has something to read, not the "coming later" stub that is often the newest row.</p>
 
+  <h3>Search syntax</h3>
+  <p>The menu prints this before every search, so nobody has to guess:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Type this</th><th>To get</th></tr></thead>
+    <tbody>
+      <tr><td><code>cabbie john</code></td><td>both words, anywhere in the segment</td></tr>
+      <tr><td><code>cabbie OR john</code></td><td>either word</td></tr>
+      <tr><td><code>cabbie NOT john</code></td><td>the first, but not the second</td></tr>
+      <tr><td><code>"wrap up show"</code></td><td>an exact phrase</td></tr>
+      <tr><td><code>beetle*</code></td><td>anything starting with <code>beetle</code></td></tr>
+      <tr><td><code>(cabbie OR john) AND fired</code></td><td>brackets to group</td></tr>
+      <tr><td><code>cabbie AND john IN 2001</code></td><td>one year only</td></tr>
+      <tr><td><code>cabbie AND john IN 2001-2003</code></td><td>a range of years</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>AND</code>, <code>OR</code>, <code>NOT</code> and <code>IN</code> are recognised only in capitals, so a lowercase "and" stays an ordinary searchable word — <code>rock and roll</code> searches for all three. A backwards range (<code>IN 2003-2001</code>) is read the right way round.</p>
+  <p>Results run <strong>oldest first</strong>, so a run of hits reads as the story unfolding rather than as a relevance ranking. Up to 200 are listed; beyond that the shell says so and suggests narrowing with <code>IN</code>. Malformed input is explained rather than thrown — <code>a AND</code> answers "The search ends on an operator".</p>
+
   <h3>Containment</h3>
   <div class="callout caution">
     <span class="label">Why this matters</span>
@@ -552,7 +572,7 @@ sudo ./install/install-frigginshell.sh    <span class="c"># install it on a serv
   </div>
   <ul>
     <li><strong>Read-only database</strong> — opened <code>mode=ro</code>, falling back to a <code>query_only</code> handle. A test asserts an <code>INSERT</code> raises.</li>
-    <li><strong>Search input never becomes query syntax</strong> — every term is quoted, so punctuation and FTS5 operators can't reach the query planner. Tested against hostile inputs that must each execute without raising and leave the tables intact.</li>
+    <li><strong>Search input never becomes query syntax</strong> — <code>parse_search()</code> rebuilds the expression from recognised tokens instead of passing it through. Operators are honoured; anything unrecognised is quoted into a plain term, so <code>'; DROP TABLE segments; --</code> parses to <code>"DROP" AND "TABLE" AND "segments"</code>. Tested against hostile inputs that must each execute without raising and leave the tables intact.</li>
     <li><strong><code>SIGTSTP</code> and <code>SIGQUIT</code> ignored</strong>, so the session can't be suspended or dumped out of.</li>
     <li><strong><code>ForceCommand</code>, not just a login shell</strong> — it also covers <code>ssh friggin@host &lt;command&gt;</code>. Agent, X11, TCP, tunnel and stream-local forwarding are all off.</li>
     <li>Without a TTY it prints the latest show and exits rather than trying to run a menu.</li>

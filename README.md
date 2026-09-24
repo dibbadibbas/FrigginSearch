@@ -98,6 +98,32 @@ from a checkout as well as from an installed copy:
 .venv/bin/python -m markscraper.shell
 ```
 
+### Search syntax
+
+The menu prints this before every search:
+
+| Type this | To get |
+|---|---|
+| `cabbie john` | both words, anywhere in the segment |
+| `cabbie OR john` | either word |
+| `cabbie NOT john` | the first, but not the second |
+| `"wrap up show"` | an exact phrase |
+| `beetle*` | anything starting with `beetle` |
+| `(cabbie OR john) AND fired` | brackets to group |
+| `cabbie AND john IN 2001` | one year only |
+| `cabbie AND john IN 2001-2003` | a range of years |
+
+`AND`, `OR`, `NOT` and `IN` are recognised only in capitals, so a lowercase
+"and" stays an ordinary searchable word — `rock and roll` searches for all three.
+A backwards range (`IN 2003-2001`) is read the right way round.
+
+Results run **oldest first**, so a run of hits reads as the story unfolding
+rather than as a relevance ranking. Up to 200 are listed; beyond that the shell
+says so and suggests narrowing with `IN`.
+
+Malformed input is explained rather than thrown — `a AND` answers "The search
+ends on an operator", `(a` answers "Unclosed bracket".
+
 ### Installing it on a server
 
 ```bash

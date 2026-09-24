@@ -79,32 +79,126 @@ def wrap(text: str, indent: str = "") -> list[str]:
 
 # ---------------------------------------------------------------------- search
 
+SEARCH_HELP = """
+  cabbie john                 both words, anywhere in the segment
+  cabbie OR john              either word
+  cabbie NOT john             the first, but not the second
+  "wrap up show"              an exact phrase
+  beetle*                     anything starting with beetle
+  (cabbie OR john) AND fired  brackets to group
+  cabbie AND john IN 2001     one year only
+  cabbie AND john IN 2001-2003  a range of years
+
+  AND, OR, NOT and IN must be capitals. Results run oldest first."""
+
+# Only these shapes are recognised; anything else becomes a plain search term,
+# so visitor input is never handed to the query planner as syntax.
+TOKEN = re.compile(r'"[^"]*"|\(|\)|[^\s()"]+')
+OPERATORS = {"AND", "OR", "NOT"}
+YEARS = re.compile(r"(\d{4})(?:-(\d{4}))?$")
 FTS_SAFE = re.compile(r"[^\w' ]+", re.UNICODE)
 
 
-def fts_query(raw: str) -> str | None:
-    """Turn visitor input into a safe FTS5 MATCH expression.
+class Search:
+    """A parsed query: an FTS5 expression plus an optional date window."""
 
-    Every term is quoted, so punctuation and FTS operators cannot reach the
-    query planner and raise syntax errors. A trailing * still means prefix
-    search, and "a quoted phrase" is honoured as a phrase.
+    def __init__(self, match=None, date_from=None, date_to=None, error=None):
+        self.match = match
+        self.date_from = date_from
+        self.date_to = date_to
+        self.error = error
+
+
+def _term(raw: str) -> str | None:
+    """Quote one word or phrase so it can only ever be a search term."""
+    prefix = raw.endswith("*")
+    if raw.startswith('"'):
+        prefix = False
+        raw = raw.strip('"')
+    cleaned = FTS_SAFE.sub(" ", raw).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    # A token of pure punctuation ("'", "--") is not worth searching for.
+    if not cleaned or not re.search(r"\w", cleaned):
+        return None
+    return f'"{cleaned}"' + ("*" if prefix else "")
+
+
+def parse_search(raw: str) -> Search:
+    """Turn visitor input into a safe FTS5 expression and a date window.
+
+    The expression is rebuilt from recognised tokens rather than passed
+    through, so punctuation and stray syntax cannot reach SQLite. Operators
+    are honoured only in capitals, which keeps a lowercase "and" searchable
+    as an ordinary word.
     """
     raw = (raw or "").strip()
     if not raw:
-        return None
-    phrase = re.fullmatch(r'"(.+)"', raw)
-    if phrase:
-        cleaned = FTS_SAFE.sub(" ", phrase.group(1)).strip()
-        return f'"{cleaned}"' if cleaned else None
+        return Search(error="Nothing to search for.")
 
-    terms = []
-    for token in raw.split():
-        prefix = token.endswith("*")
-        cleaned = FTS_SAFE.sub(" ", token).strip()
-        if not cleaned:
-            continue
-        terms.append(f'"{cleaned}"' + ("*" if prefix else ""))
-    return " AND ".join(terms) if terms else None
+    tokens = TOKEN.findall(raw)
+
+    # Pull "IN 2001" / "IN 2001-2003" out before anything else.
+    date_from = date_to = None
+    if "IN" in tokens:
+        at = tokens.index("IN")
+        span = tokens[at + 1] if at + 1 < len(tokens) else ""
+        years = YEARS.match(span)
+        if not years:
+            return Search(error="IN needs a year, like IN 2001 or IN 2001-2003.")
+        first, second = years.group(1), years.group(2) or years.group(1)
+        if first > second:
+            first, second = second, first
+        date_from, date_to = f"{first}-01-01", f"{second}-12-31"
+        tokens = tokens[:at] + tokens[at + 2:]
+
+    # Rebuild the expression, inserting the implicit AND between adjacent terms.
+    parts: list[str] = []
+    depth = 0
+    previous = "start"          # start | term | operator | open | close
+    for token in tokens:
+        if token == "(":
+            if previous in ("term", "close"):
+                parts.append("AND")
+            parts.append("(")
+            depth += 1
+            previous = "open"
+        elif token == ")":
+            depth -= 1
+            if depth < 0:
+                return Search(error="Unmatched bracket.")
+            if previous in ("start", "operator", "open"):
+                return Search(error="Empty brackets.")
+            parts.append(")")
+            previous = "close"
+        elif token in OPERATORS:
+            if previous in ("start", "operator", "open"):
+                return Search(error=f"{token} needs a word before it.")
+            parts.append(token)
+            previous = "operator"
+        else:
+            term = _term(token)
+            if term is None:
+                continue
+            if previous in ("term", "close"):
+                parts.append("AND")
+            parts.append(term)
+            previous = "term"
+
+    if depth:
+        return Search(error="Unclosed bracket.")
+    if previous == "operator":
+        return Search(error="The search ends on an operator.")
+    if not parts:
+        if date_from:
+            return Search(error="Add a word to search for as well as a year.")
+        return Search(error="Nothing to search for.")
+
+    return Search(" ".join(parts), date_from, date_to)
+
+
+def fts_query(raw: str) -> str | None:
+    """The expression half of a parsed query, or None if it cannot be built."""
+    return parse_search(raw).match
 
 
 # ------------------------------------------------------------------------ data
@@ -158,6 +252,8 @@ def show_segments(conn, show_id):
 # ----------------------------------------------------------------------- views
 
 class FrigginShell:
+    RESULT_LIMIT = 200
+
     def __init__(self, conn):
         self.conn = conn
         self.ink = Ink(_use_colour())
@@ -242,30 +338,44 @@ class FrigginShell:
 
     # -- actions ----------------------------------------------------------
     def do_search(self) -> None:
-        raw = self.ask("\n  Search the archive: ")
-        query = fts_query(raw)
-        if not query:
-            print("  Nothing to search for. Try a word or two.")
+        print()
+        print(self.ink.bold("  Search the archive"))
+        print(self.ink.dim(SEARCH_HELP))
+        raw = self.ask("\n  Search: ")
+        query = parse_search(raw)
+        if query.error:
+            print(f"  {query.error}")
             return
+
+        sql = ("SELECT s.id, s.title, s.air_time, sh.show_date, "
+               "       snippet(segments_fts, 1, '<<', '>>', ' … ', 14) AS snip "
+               "FROM segments_fts f "
+               "JOIN segments s ON s.id = f.rowid "
+               "JOIN shows sh ON sh.id = s.show_id "
+               "WHERE segments_fts MATCH ?")
+        params: list = [query.match]
+        if query.date_from:
+            sql += " AND sh.show_date >= ? AND sh.show_date <= ?"
+            params += [query.date_from, query.date_to]
+        # Oldest first, so a run of results reads as the story unfolding.
+        sql += " ORDER BY sh.show_date IS NULL, sh.show_date, s.ordinal LIMIT ?"
+        params.append(self.RESULT_LIMIT + 1)
+
         try:
-            rows = self.conn.execute(
-                "SELECT s.id, s.title, s.air_time, s.body_chars, sh.show_date, "
-                "       snippet(segments_fts, 1, '<<', '>>', ' … ', 14) AS snip "
-                "FROM segments_fts f "
-                "JOIN segments s ON s.id = f.rowid "
-                "JOIN shows sh ON sh.id = s.show_id "
-                "WHERE segments_fts MATCH ? "
-                "ORDER BY bm25(segments_fts) LIMIT 40", (query,)
-            ).fetchall()
+            rows = self.conn.execute(sql, params).fetchall()
         except sqlite3.OperationalError:
             print("  That search could not be run. Try plain words.")
             return
 
         if not rows:
-            print(f"  No matches for {raw!r}.")
+            where = f" in {query.date_from[:4]}-{query.date_to[:4]}" if query.date_from else ""
+            print(f"  No matches for {raw!r}{where}.")
             return
 
+        truncated = len(rows) > self.RESULT_LIMIT
+        rows = rows[: self.RESULT_LIMIT]
         self.last_results = rows
+
         lines = [""]
         for i, row in enumerate(rows, 1):
             lines.append(f"  {self.ink.key(str(i).rjust(3))}  "
@@ -275,7 +385,15 @@ class FrigginShell:
                                   .replace(">>", "\033[0m" if self.ink.on else "]")
                 lines.extend(wrap(snip, "       "))
         self.page(lines)
-        print(self.ink.dim(f"  {len(rows)} result(s). Enter a number to read one."))
+
+        span = ""
+        if rows[0]["show_date"] and rows[-1]["show_date"]:
+            span = f", {rows[0]['show_date'][:4]} to {rows[-1]['show_date'][:4]}"
+        note = (f"  Showing the oldest {len(rows)}{span} — narrow it with IN, "
+                f"or add another word."
+                if truncated else f"  {len(rows)} result(s){span}.")
+        print(self.ink.dim(note))
+        print(self.ink.dim("  Enter a number to read one."))
         self.open_result()
 
     def open_result(self) -> None:

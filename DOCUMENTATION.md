@@ -305,7 +305,7 @@ or a password for an open guest login.
 | Key | Action |
 |---|---|
 | `1` | Latest show — titles, air times, summaries where present |
-| `2` | Search — FTS5, bm25-ranked, with highlighted snippets |
+| `2` | Search — see the syntax below; results run oldest first |
 | `3` | Browse a date — a full date (`2004-06-15`) or a whole year (`2004`) |
 | `4` | Random segment |
 | `5` | Archive stats |
@@ -314,6 +314,32 @@ or a password for an open guest login.
 The landing screen deliberately skips the site's placeholder days — it shows the
 most recent show that actually has something to read, not the "coming later"
 stub that is often the newest row.
+
+### Search syntax
+
+The menu prints this before every search:
+
+| Type this | To get |
+|---|---|
+| `cabbie john` | both words, anywhere in the segment |
+| `cabbie OR john` | either word |
+| `cabbie NOT john` | the first, but not the second |
+| `"wrap up show"` | an exact phrase |
+| `beetle*` | anything starting with `beetle` |
+| `(cabbie OR john) AND fired` | brackets to group |
+| `cabbie AND john IN 2001` | one year only |
+| `cabbie AND john IN 2001-2003` | a range of years |
+
+`AND`, `OR`, `NOT` and `IN` are recognised only in capitals, so a lowercase
+"and" stays an ordinary searchable word — `rock and roll` searches for all three.
+A backwards range (`IN 2003-2001`) is read the right way round.
+
+Results run **oldest first**, so a run of hits reads as the story unfolding
+rather than as a relevance ranking. Up to 200 are listed; beyond that the shell
+says so and suggests narrowing with `IN`.
+
+Malformed input is explained rather than thrown — `a AND` answers "The search
+ends on an operator", `(a` answers "Unclosed bracket".
 
 ### Containment
 
@@ -326,10 +352,12 @@ as a dead end:
 - **The database is opened read-only** (`mode=ro`, falling back to a
   `query_only` handle), so the archive cannot be modified through it. Covered by
   a test that asserts an `INSERT` raises.
-- **Search input never becomes query syntax.** `fts_query()` quotes every term,
-  so punctuation and FTS5 operators cannot reach the query planner. Tested
-  against a set of hostile inputs, each of which must execute without raising
-  and leave the tables intact.
+- **Search input never becomes query syntax.** `parse_search()` rebuilds the
+  expression from recognised tokens instead of passing it through — operators
+  are honoured, but anything unrecognised is quoted into a plain search term.
+  `'; DROP TABLE segments; --` parses to `"DROP" AND "TABLE" AND "segments"`.
+  Tested against a set of hostile inputs, each of which must execute without
+  raising and leave the tables intact.
 - **`SIGTSTP` and `SIGQUIT` are ignored**, so the session cannot be suspended or
   dumped out of.
 - **`ForceCommand`** is used rather than only a login shell, because it also
