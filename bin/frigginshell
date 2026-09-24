@@ -1,15 +1,34 @@
 #!/bin/sh
-# FrigginShell launcher. Set as a login shell or an sshd ForceCommand.
+# FrigginShell launcher. Works from a source checkout and from an installed
+# copy alike -- the application root is resolved from this script's own
+# location rather than assumed, so bin/ and markscraper/ just need to stay
+# siblings.
 #
-#   FRIGGIN_HOME  where the application lives   (default: /opt/markscraper)
-#   MARKSCRAPER_DB  the archive to serve        (default: $FRIGGIN_HOME/data/marksfriggin.db)
+# Overrides:
+#   FRIGGIN_HOME    application root   (default: the parent of this script)
+#   MARKSCRAPER_DB  archive to serve   (default: $FRIGGIN_HOME/data/marksfriggin.db)
 set -eu
 
-FRIGGIN_HOME="${FRIGGIN_HOME:-/opt/markscraper}"
-MARKSCRAPER_DB="${MARKSCRAPER_DB:-$FRIGGIN_HOME/data/marksfriggin.db}"
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+APP_ROOT="${FRIGGIN_HOME:-$(CDPATH= cd -- "$(dirname -- "$SELF")/.." && pwd)}"
+
+MARKSCRAPER_DB="${MARKSCRAPER_DB:-$APP_ROOT/data/marksfriggin.db}"
 export MARKSCRAPER_DB
 
-PY="$FRIGGIN_HOME/.venv/bin/python"
-[ -x "$PY" ] || PY="$(command -v python3)"
+# The package is imported by name, so the root has to be on the path no matter
+# which directory the visitor happens to land in.
+PYTHONPATH="$APP_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH
 
+PY="$APP_ROOT/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+    PY="$(command -v python3 2>/dev/null || true)"
+fi
+if [ -z "$PY" ]; then
+    echo "frigginshell: no python3 found" >&2
+    exit 1
+fi
+
+# Arguments are deliberately dropped. As a login shell, sshd invokes this as
+# "frigginshell -c <command>"; the menu is the only thing a visitor ever gets.
 exec "$PY" -m markscraper.shell

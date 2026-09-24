@@ -90,7 +90,13 @@ ssh friggin@your-host
   4 Random segment 5 Archive stats q Quit
 ```
 
-Run it locally with `.venv/bin/python -m markscraper.shell`.
+Run it locally either way — the launcher resolves its own location, so it works
+from a checkout as well as from an installed copy:
+
+```bash
+./bin/frigginshell
+.venv/bin/python -m markscraper.shell
+```
 
 ### Installing it on a server
 
